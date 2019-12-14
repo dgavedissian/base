@@ -1,6 +1,8 @@
 #include <iostream>
 #include <variant>
 #include "fast_variant_visit/fast_variant_visit.h"
+#include "barrier/barrier.h"
+#include "semaphore/semaphore.h"
 
 struct Foo { int x; };
 struct Bar { float y; };
@@ -17,8 +19,6 @@ struct Visitor {
 };
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
-
     dga::visit(Visitor{}, Var{Foo{123}});
     Var var = Bar{123.0f};
     dga::visit(Visitor{}, var);
