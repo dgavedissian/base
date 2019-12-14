@@ -3,9 +3,14 @@
 #include "fast_variant_visit/fast_variant_visit.h"
 #include "barrier/barrier.h"
 #include "semaphore/semaphore.h"
+#include "str_algorithms/str_algorithms.h"
 
-struct Foo { int x; };
-struct Bar { float y; };
+struct Foo {
+    int x;
+};
+struct Bar {
+    float y;
+};
 
 using Var = std::variant<Foo, Bar>;
 

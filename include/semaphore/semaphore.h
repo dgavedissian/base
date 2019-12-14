@@ -6,7 +6,8 @@
 #include <condition_variable>
 #include <chrono>
 
-// Based on https://stackoverflow.com/a/27852868
+// Semaphore. Based almost entirely on https://stackoverflow.com/a/27852868
+namespace dga {
 class Semaphore {
 public:
     using native_handle_type = typename std::condition_variable::native_handle_type;
@@ -79,3 +80,4 @@ bool Semaphore::wait_until(const std::chrono::time_point<Clock, Duration>& t) {
 inline Semaphore::native_handle_type Semaphore::native_handle() {
     return cv_.native_handle();
 }
+}  // namespace dga
