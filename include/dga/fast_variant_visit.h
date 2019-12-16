@@ -6,13 +6,7 @@
 #include <type_traits>
 #include <functional>
 
-#if defined(_MSC_VER)
-#define UNREACHABLE __assume(0)
-#elif defined(__GNUC__)
-#define UNREACHABLE __builtin_unreachable()
-#else
-#define UNREACHABLE void
-#endif
+#include "platform.h"
 
 namespace dga {
 namespace detail {
@@ -24,7 +18,7 @@ template <typename Visitor, typename Variant> struct visit_helper {
             return std::invoke(std::forward<Visitor>(visitor),
                                std::get<I>(std::forward<Variant>(variant)));
         } else {
-            UNREACHABLE;
+            DGA_UNREACHABLE;
         }
     }
 
@@ -84,7 +78,7 @@ template <typename Visitor, typename Variant> struct visit_helper {
                                          std::forward<Variant>(variant));
             }
         } else {
-            UNREACHABLE;
+            DGA_UNREACHABLE;
         }
     }
 };

@@ -9,9 +9,10 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 add_library(dga-base
+    include/dga/aliases.h
     include/dga/barrier.h
     include/dga/fast_variant_visit.h
-    include/dga/inttypes.h
+    include/dga/platform.h
     include/dga/semaphore.h
     include/dga/string_algorithms.h
 )
