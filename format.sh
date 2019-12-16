@@ -13,4 +13,8 @@ if [[ ! "${CLANG_FORMAT_VERSION}" =~ ^9.0 ]]; then
 fi
 
 # Run clang-format against a set of paths.
-find . -name "*.h" -o -name "*.cpp" -exec "${CLANG_FORMAT}" -i {} \;
+PATHS=(
+    include
+    tests
+)
+find "${PATHS[@]}" -name "*.h" -o -name "*.cpp" -exec $CLANG_FORMAT -i {} \;

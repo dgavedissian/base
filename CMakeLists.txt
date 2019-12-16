@@ -1,23 +1,25 @@
-cmake_minimum_required(VERSION 3.15)
-project(cpp-utils)
+cmake_minimum_required(VERSION 3.8)
+project(base)
 
-set(CMAKE_CXX_STANDARD 17)
+# Determine if this is built as a subproject (using add_subdirectory)
+# or if it is the master project.
+set(MASTER_PROJECT OFF)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  set(MASTER_PROJECT ON)
+endif()
 
-add_library(barrier include/barrier/barrier.h)
-target_include_directories(barrier PUBLIC include)
-set_target_properties(barrier PROPERTIES LINKER_LANGUAGE CXX)
+add_library(dga-base
+    include/dga/barrier.h
+    include/dga/fast_variant_visit.h
+    include/dga/inttypes.h
+    include/dga/semaphore.h
+    include/dga/string_algorithms.h
+)
+target_include_directories(dga-base PUBLIC include)
+set_target_properties(dga-base PROPERTIES LINKER_LANGUAGE CXX)
+target_compile_features(dga-base PUBLIC cxx_std_17)
+set_target_properties(dga-base PROPERTIES CXX_EXTENSIONS OFF)
 
-add_library(fast_variant_visit include/fast_variant_visit/fast_variant_visit.h)
-target_include_directories(fast_variant_visit PUBLIC include)
-set_target_properties(fast_variant_visit PROPERTIES LINKER_LANGUAGE CXX)
-
-add_library(semaphore include/semaphore/semaphore.h)
-target_include_directories(semaphore PUBLIC include)
-set_target_properties(semaphore PROPERTIES LINKER_LANGUAGE CXX)
-
-add_library(str_algorithms include/str_algorithms/str_algorithms.h)
-target_include_directories(str_algorithms PUBLIC include)
-set_target_properties(str_algorithms PROPERTIES LINKER_LANGUAGE CXX)
-
-add_executable(cpp-utils main.cpp)
-target_link_libraries(cpp-utils barrier fast_variant_visit semaphore str_algorithms)
+if(MASTER_PROJECT)
+  add_subdirectory(tests)
+endif()

@@ -1,12 +1,12 @@
-/* C++ utils
- * Written by David Avedissian (c) 2019-2020 (git@dga.dev)  */
+/* Base library
+ * Written by David Avedissian (c) 2018-2020 (git@dga.dev)  */
 #pragma once
 
 #include <mutex>
 #include <condition_variable>
 #include <chrono>
 
-// Semaphore. Based almost entirely on https://stackoverflow.com/a/27852868
+// Semaphore. Based almost entirely on https://stackoverflow.com/a/27852868.
 namespace dga {
 class Semaphore {
 public:

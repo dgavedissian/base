@@ -1,5 +1,5 @@
-/* C++ utils
- * Written by David Avedissian (c) 2019-2020 (git@dga.dev)  */
+/* Base library
+ * Written by David Avedissian (c) 2018-2020 (git@dga.dev)  */
 #pragma once
 
 #include <variant>
