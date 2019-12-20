@@ -4,6 +4,7 @@
 #include <dga/barrier.h>
 #include <dga/fast_variant_visit.h>
 #include <dga/aliases.h>
+#include <dga/scope.h>
 #include <dga/semaphore.h>
 #include <dga/string_algorithms.h>
 
@@ -52,6 +53,12 @@ int main() {
     foo = dga::strJoin(collection.begin(), collection.end(), ",");
     foo = dga::strReplaceAll(foo, "200", "150");
     (void)foo;
+
+    // Scope guards.
+    {
+        auto on_exit = dga::scope_exit{[&] { std::cout << "Called on exit." << std::endl; }};
+        std::cout << "Called before exit." << std::endl;
+    }
 
     return 0;
 }

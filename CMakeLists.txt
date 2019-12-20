@@ -13,6 +13,7 @@ add_library(dga-base
     include/dga/barrier.h
     include/dga/fast_variant_visit.h
     include/dga/platform.h
+    include/dga/scope.h
     include/dga/semaphore.h
     include/dga/string_algorithms.h
 )
