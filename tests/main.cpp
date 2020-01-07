@@ -4,6 +4,7 @@
 #include <dga/barrier.h>
 #include <dga/fast_variant_visit.h>
 #include <dga/aliases.h>
+#include <dga/hash_combine.h>
 #include <dga/scope.h>
 #include <dga/semaphore.h>
 #include <dga/string_algorithms.h>
@@ -59,6 +60,10 @@ int main() {
         auto on_exit = dga::scope_exit{[&] { std::cout << "Called on exit." << std::endl; }};
         std::cout << "Called before exit." << std::endl;
     }
+
+    // Hash combine.
+    std::size_t hash = 0;
+    dga::hashCombine(hash, 100, 200, std::string{"hello"});
 
     return 0;
 }
