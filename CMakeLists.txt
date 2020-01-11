@@ -1,3 +1,5 @@
+# Base library
+# Written by David Avedissian (c) 2018-2020 (git@dga.dev)
 cmake_minimum_required(VERSION 3.8)
 project(base)
 
