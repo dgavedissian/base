@@ -16,13 +16,14 @@ include(GoogleTest)
 macro(dga_add_test NAME)
     add_executable(${NAME} ${NAME}.cpp)
     target_compile_features(${NAME} PRIVATE cxx_std_17)
-    target_link_libraries(${NAME} dga-base gtest_main)
+    target_link_libraries(${NAME} dga-base gtest gmock gtest_main)
     gtest_add_tests(
         TARGET ${NAME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endmacro()
 
 dga_add_test(scope_test)
+dga_add_test(string_algorithms_test)
 
 # TODO: Remove this.
 add_executable(examples main.cpp)

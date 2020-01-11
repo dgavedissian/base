@@ -7,13 +7,13 @@
 
 namespace dga {
 /// Splits a string, delimited by character 'delim' into multiple strings. These strings are stored
-/// in the 'output_iterator' iterator.
+/// in the 'output_iterator' iterator. Trailing delimiters are ignored.
 template <typename OutputIt>
 void strSplit(const std::string& s, char delim, OutputIt output_iterator) {
     std::istringstream ss(s);
     std::string item;
     while (std::getline(ss, item, delim)) {
-        *output_iterator++ = item;
+        *output_iterator++ = std::move(item);
     }
 }
 
@@ -34,7 +34,7 @@ std::string strJoin(InputIt first, InputIt last, const std::string& separator) {
 
 /// Performs an exhaustive search and replace in string 'subject'.
 inline std::string strReplaceAll(std::string subject, const std::string& search,
-                           const std::string& replace) {
+                                 const std::string& replace) {
     size_t pos = 0;
     while ((pos = subject.find(search, pos)) != std::string::npos) {
         subject.replace(pos, search.length(), replace);

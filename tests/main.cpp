@@ -5,9 +5,7 @@
 #include <dga/fast_variant_visit.h>
 #include <dga/aliases.h>
 #include <dga/hash_combine.h>
-#include <dga/scope.h>
 #include <dga/semaphore.h>
-#include <dga/string_algorithms.h>
 
 struct Foo {
     int x;
@@ -46,20 +44,6 @@ int main() {
     // Semaphore.
     dga::Semaphore semaphore;
     (void)semaphore;
-
-    // String algorithms.
-    std::string foo = "100-200-300";
-    std::vector<std::string> collection;
-    dga::strSplit("100-200-300", '-', std::back_inserter(collection));
-    foo = dga::strJoin(collection.begin(), collection.end(), ",");
-    foo = dga::strReplaceAll(foo, "200", "150");
-    (void)foo;
-
-    // Scope guards.
-    {
-        auto on_exit = dga::scope_exit{[&] { std::cout << "Called on exit." << std::endl; }};
-        std::cout << "Called before exit." << std::endl;
-    }
 
     // Hash combine.
     std::size_t hash = 0;
