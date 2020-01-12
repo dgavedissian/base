@@ -6,7 +6,10 @@
 #include <condition_variable>
 #include <chrono>
 
-// Semaphore. Based almost entirely on https://stackoverflow.com/a/27852868.
+/*
+ * Semaphore. Based almost entirely on https://stackoverflow.com/a/27852868.
+ */
+
 namespace dga {
 class Semaphore {
 public:

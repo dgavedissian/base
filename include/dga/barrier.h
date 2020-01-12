@@ -5,7 +5,10 @@
 #include <mutex>
 #include <condition_variable>
 
-// Thread barrier. Based almost entirely on https://stackoverflow.com/a/27118537
+/*
+ * Thread barrier. Based almost entirely on https://stackoverflow.com/a/27118537
+ */
+
 namespace dga {
 class Barrier {
 public:

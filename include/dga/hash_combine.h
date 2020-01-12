@@ -2,7 +2,9 @@
  * Written by David Avedissian (c) 2018-2020 (git@dga.dev)  */
 #pragma once
 
-// Extended version of boost::hash_combine that supports multiple values at once.
+/*
+ * Extended version of boost::hash_combine that supports multiple values at once.
+ */
 
 namespace dga {
 inline void hashCombine(std::size_t& seed) {

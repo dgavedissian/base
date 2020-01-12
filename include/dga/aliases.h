@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <cstddef>
 
-// Rust style primitive type aliases.
+/*
+ * Rust style primitive type aliases.
+ */
 
 namespace dga {
 using uint = unsigned int;
