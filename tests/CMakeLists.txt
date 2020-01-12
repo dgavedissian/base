@@ -24,6 +24,7 @@ endmacro()
 
 dga_add_test(scope_test)
 dga_add_test(string_algorithms_test)
+dga_add_test(result_test)
 
 # TODO: Remove this.
 add_executable(examples main.cpp)
