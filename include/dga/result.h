@@ -56,6 +56,10 @@ template <typename E> constexpr bool operator!=(const Error<E>& lhs, const Error
     return lhs.value() != rhs.value();
 }
 
+template <typename T> struct is_error : std::false_type {};
+template <typename E> struct is_error<Error<E>> : std::true_type {};
+template <typename T> constexpr bool is_error_v = is_error<T>::value;
+
 // Result type.
 
 namespace detail {
@@ -129,7 +133,7 @@ public:
     using detail::ResultStorageWithOperations<T, E>::ResultStorageWithOperations;
 
     constexpr Result(const Result& other) = default;
-    constexpr Result(Result&& other) = default;
+    constexpr Result(Result&& other) noexcept = default;
 
     template <typename U, typename G>
     explicit constexpr Result(const Result<U, G>& other)
@@ -155,48 +159,113 @@ public:
     ~Result() = default;
 
     // Assignment.
-    /*
-    Result& operator=(const Result&);
-    Result& operator=(Result&&) noexcept(true);
-    template <class U = T> Result& operator=(U&&);
-    template <class G = E> Result& operator=(const Error<G>&);
-    template <class G = E> Result& operator=(Error<G>&&) noexcept(true);
+    Result& operator=(const Result&) = default;
+    Result& operator=(Result&&) = default;
 
-    template <class... Args> void emplace(Args&&...);
-    template <class U, class... Args> void emplace(std::initializer_list<U>, Args&&...);
+    template <
+        class U = T,
+        std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<U>>, Result>>* =
+            nullptr,
+        std::enable_if_t<!is_error_v<std::remove_cv_t<std::remove_reference_t<U>>>>* = nullptr>
+    Result& operator=(U&& value) {
+        if (has_value()) {
+            this->value_ = T{std::forward<U>(value)};
+        } else {
+            this->error_.~Error<E>();
+            this->constructValue(std::forward<U>(value));
+        }
+        return *this;
+    }
 
-    // �.�.4.4, swap
-    void swap(Result&) noexcept(true);
-     */
+    template <class G = E> Result& operator=(const Error<G>& error) {
+        if (!has_value()) {
+            this->error_ = error;
+        } else {
+            this->value_.~T();
+            this->constructError(error);
+        }
+        return *this;
+    }
 
-    // �.�.4.5, observers
+    template <class G = E> Result& operator=(Error<G>&& error) {
+        if (!has_value()) {
+            this->error_ = std::move(error);
+        } else {
+            this->value_.~T();
+            this->constructError(std::move(error));
+        }
+        return *this;
+    }
+
+    template <class... Args> void emplace(Args&&... args) {
+        if (has_value()) {
+            this->value_ = T{std::forward<Args>(args)...};
+        } else {
+            this->error_.~Error<E>();
+            this->constructValue(std::forward<Args>(args)...);
+        }
+    }
+
+    // Swap.
+    template <
+        std::enable_if_t<std::is_nothrow_move_constructible_v<T> ||
+                         std::is_nothrow_move_constructible_v<E> || std::is_void_v<T>>* = nullptr>
+    void swap(Result& other) {
+        if (has_value() && other.has_value()) {
+            std::swap(this->value_, other.value_);
+        } else if (!has_value() && !other.has_value()) {
+            std::swap(this->error_, other.error_);
+        } else if (!has_value() && other.has_value()) {
+            other.swap(*this);
+        } else {
+            if constexpr (std::is_void_v<T>) {
+                this->constructError(std::move(other.error_));
+                other.error_.~Error<E>();
+                other.constructValue();
+            } else if constexpr (std::is_nothrow_move_constructible_v<E>) {
+                auto tmp = std::move(other.error_);
+                other.error_.~Error<E>();
+                other.constructValue(std::move(this->value_));
+                this->value_.~T();
+                this->constructError(std::move(tmp));
+            } else if constexpr (std::is_nothrow_move_constructible_v<T>) {
+                auto tmp = std::move(this->value_);
+                this->value_.~t();
+                this->constructError(std::move(other->error_));
+                other.error_.~Error<E>();
+                other.constructValue(std::move(tmp));
+            }
+        }
+    }
+
+    // Observers.
     constexpr const T* operator->() const {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return &this->value_;
     }
 
     constexpr T* operator->() {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return &this->value_;
     }
 
     constexpr const T& operator*() const& {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return this->value_;
     }
 
     constexpr T& operator*() & {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return this->value_;
     }
 
     constexpr const T&& operator*() const&& {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return std::move(this->value_);
     }
 
     constexpr T&& operator*() && {
-        // TODO: Throw exception if error.
+        assert(has_value());
         return std::move(this->value_);
     }
 

@@ -17,6 +17,8 @@ template <typename T> struct ConvertibleTo {
 private:
     T value_;
 };
+
+template <typename T> ConvertibleTo(T)->ConvertibleTo<T>;
 }  // namespace
 
 using dga::Error;
@@ -40,7 +42,7 @@ TEST(Result, ResultValue) {
         Result<float, int> result{1.0f};
         EXPECT_TRUE(result.has_value());
         EXPECT_TRUE(bool(result));
-        EXPECT_EQ(result.value(), 1.0f);
+        EXPECT_EQ(*result, 1.0f);
     }
 
     // Construct from U (convertible to T).
@@ -48,13 +50,13 @@ TEST(Result, ResultValue) {
         Result<float, int> result{1.0};
         EXPECT_TRUE(result.has_value());
         EXPECT_TRUE(bool(result));
-        EXPECT_EQ(result.value(), 1.0f);
+        EXPECT_EQ(*result, 1.0f);
     }
     {
         Result<float, int> result{ConvertibleTo{1.0f}};
         EXPECT_TRUE(result.has_value());
         EXPECT_TRUE(bool(result));
-        EXPECT_EQ(result.value(), 1.0f);
+        EXPECT_EQ(*result, 1.0f);
     }
 
     // Construct with error type but as value.
@@ -62,7 +64,7 @@ TEST(Result, ResultValue) {
         Result<float, int> result{1};
         EXPECT_TRUE(result.has_value());
         EXPECT_TRUE(bool(result));
-        EXPECT_EQ(result.value(), 1.0f);
+        EXPECT_EQ(*result, 1.0f);
     }
 
     // Error.
@@ -90,6 +92,51 @@ TEST(Result, ValueOr) {
     {
         Result<float, int> result{Error<int>(100)};
         EXPECT_EQ(result.value_or(ConvertibleTo{300.0f}), 300.0f);
+    }
+}
+
+TEST(Result, Assignment) {
+    Result<int, int> result;
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 0);
+
+    // Assign from rvalue ref result.
+    result = Result<int, int>{100};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 100);
+
+    // Assign from lvalue ref result.
+    {
+        Result<int, int> source_result{200};
+        result = source_result;
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 200);
+    }
+
+    // Assign from rvalue ref error.
+    result = Error<int>{100};
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), 100);
+
+    // Assign from lvalue ref error.
+    {
+        Error<int> source_error{200};
+        result = source_error;
+        EXPECT_FALSE(result.has_value());
+        EXPECT_EQ(result.error(), 200);
+    }
+
+    // Assign from rvalue ref U that's convertible to T.
+    result = ConvertibleTo{300};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result.error(), 300);
+
+    // Assign from lvalue ref U that's convertible to T.
+    {
+        auto source = ConvertibleTo{400};
+        result = source;
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 400);
     }
 }
 
