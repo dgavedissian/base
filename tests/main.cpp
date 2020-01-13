@@ -7,6 +7,8 @@
 #include <dga/hash_combine.h>
 #include <dga/semaphore.h>
 
+#include <dga/enum_size.h>
+
 struct Foo {
     int x;
 };
@@ -48,6 +50,9 @@ int main() {
     // Hash combine.
     std::size_t hash = 0;
     dga::hashCombine(hash, 100, 200, std::string{"hello"});
+
+    //std::cout << dga::count_v<SomeEnum>;
+    dga::detail::n<SomeEnum, SomeEnum::Foo>();
 
     return 0;
 }
