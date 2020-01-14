@@ -19,6 +19,35 @@ private:
 };
 
 template <typename T> ConvertibleTo(T)->ConvertibleTo<T>;
+
+// Helper class to increment a counter when its destructor is called.
+class DestructorCounter {
+public:
+    explicit DestructorCounter(int& destructor_calls) : destructor_calls_(&destructor_calls) {
+    }
+
+    DestructorCounter(DestructorCounter&& other) noexcept {
+        std::swap(destructor_calls_, other.destructor_calls_);
+    }
+
+    DestructorCounter(const DestructorCounter&) = delete;
+
+    DestructorCounter& operator=(DestructorCounter&& other) noexcept {
+        std::swap(destructor_calls_, other.destructor_calls_);
+        return *this;
+    }
+
+    DestructorCounter& operator=(const DestructorCounter&) = delete;
+
+    ~DestructorCounter() {
+        if (destructor_calls_) {
+            (*destructor_calls_)++;
+        }
+    }
+
+private:
+    int* destructor_calls_ = nullptr;
+};
 }  // namespace
 
 using dga::Error;
@@ -129,7 +158,7 @@ TEST(Result, Assignment) {
     // Assign from rvalue ref U that's convertible to T.
     result = ConvertibleTo{300};
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result.error(), 300);
+    EXPECT_EQ(result.value(), 300);
 
     // Assign from lvalue ref U that's convertible to T.
     {
@@ -140,12 +169,120 @@ TEST(Result, Assignment) {
     }
 }
 
-// TODO: Support void results.
-/*
-TEST(Result, DefaultVoidResult) {
-    Result<void, int> default_result;
-    EXPECT_TRUE(default_result.has_value());
-    EXPECT_TRUE(bool(default_result));
-    static_assert(std::is_void_v<default_result.value()>);
+TEST(Result, MissingResultValueException) {
+    Result<int, int> result{Error<int>{123}};
+    try {
+        result.value();
+        ADD_FAILURE() << "Exception was not thrown by value()";
+    } catch (const dga::MissingResultValue<int>& exception) {
+        EXPECT_EQ(exception.error(), 123);
+    }
 }
- */
+
+TEST(Result, Destructor) {
+    // Destructor of value type should be called.
+    {
+        int destructor_calls = 0;
+        { Result<DestructorCounter, int> result{DestructorCounter{destructor_calls}}; }
+        EXPECT_EQ(destructor_calls, 1);
+    }
+
+    // Destructor of error type should be called.
+    {
+        int destructor_calls = 0;
+        { Result<int, DestructorCounter> result{Error{DestructorCounter{destructor_calls}}}; }
+        EXPECT_EQ(destructor_calls, 1);
+    }
+
+    // Assignment destroys the existing value or error.
+    // value = value
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, DestructorCounter> result{
+                DestructorCounter{destructor1_calls}};
+            result = DestructorCounter{destructor2_calls};
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+    // error = value
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, DestructorCounter> result{
+                Error<DestructorCounter>(DestructorCounter{destructor1_calls})};
+            result = DestructorCounter{destructor2_calls};
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+    // value = error
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, DestructorCounter> result{
+                DestructorCounter{destructor1_calls}};
+            result = Error<DestructorCounter>{DestructorCounter{destructor2_calls}};
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+    // error = error
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, DestructorCounter> result{
+                Error<DestructorCounter>(DestructorCounter{destructor1_calls})};
+            result = Error<DestructorCounter>{DestructorCounter{destructor2_calls}};
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+
+    // Emplace destroys the existing value or error.
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, int> result{DestructorCounter{destructor1_calls}};
+            result.emplace(DestructorCounter{destructor2_calls});
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+    {
+        int destructor1_calls = 0;
+        int destructor2_calls = 0;
+        {
+            Result<DestructorCounter, DestructorCounter> result{
+                Error<DestructorCounter>(DestructorCounter{destructor1_calls})};
+            result.emplace(DestructorCounter{destructor2_calls});
+            EXPECT_EQ(destructor1_calls, 1);
+        }
+        EXPECT_EQ(destructor2_calls, 1);
+    }
+}
+
+TEST(Result, VoidResult) {
+    Result<void, int> result;
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+
+    result = {};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+
+    result = Error<int>{123};
+    EXPECT_FALSE(result.has_value());
+    EXPECT_FALSE(bool(result));
+    EXPECT_EQ(result.error(), 123);
+
+    result.emplace();
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+}
