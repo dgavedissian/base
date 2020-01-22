@@ -342,7 +342,11 @@ public:
     constexpr Result(const Result& other)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->constructValue(*other);
+            if constexpr (!std::is_void_v<T>) {
+                this->constructValue(other.value());
+            } else {
+                this->constructValue();
+            }
         } else {
             this->constructError(other.error());
         }
@@ -352,7 +356,11 @@ public:
         std::is_nothrow_move_constructible_v<T>&& std::is_nothrow_move_constructible_v<E>)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->constructValue(std::move(*other));
+            if constexpr (!std::is_void_v<T>) {
+                this->constructValue(std::move(other).value());
+            } else {
+                this->constructValue();
+            }
         } else {
             this->constructError(std::move(other.error()));
         }
@@ -362,7 +370,11 @@ public:
     explicit constexpr Result(const Result<U, G>& other)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->constructValue(*other);
+            if constexpr (!std::is_void_v<T>) {
+                this->constructValue(other.value());
+            } else {
+                this->constructValue();
+            }
         } else {
             this->constructError(other.error());
         }
@@ -373,7 +385,11 @@ public:
         std::is_nothrow_move_constructible_v<T>&& std::is_nothrow_move_constructible_v<E>)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->constructValue(std::move(*other));
+            if constexpr (!std::is_void_v<T>) {
+                this->constructValue(std::move(other).value());
+            } else {
+                this->constructValue();
+            }
         } else {
             this->constructError(std::move(other.error()));
         }

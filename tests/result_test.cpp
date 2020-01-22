@@ -65,6 +65,25 @@ TEST(Result, DefaultInitialise) {
     EXPECT_EQ(default_result.value(), 0);
 }
 
+TEST(Result, VoidResult) {
+    Result<void, int> result;
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+
+    result = {};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+
+    result = Error<int>{123};
+    EXPECT_FALSE(result.has_value());
+    EXPECT_FALSE(bool(result));
+    EXPECT_EQ(result.error(), 123);
+
+    result.emplace();
+    EXPECT_TRUE(result.has_value());
+    EXPECT_TRUE(bool(result));
+}
+
 TEST(Result, ResultValue) {
     // Construct from T.
     {
@@ -116,52 +135,7 @@ TEST(Result, ValueOr) {
     }
 }
 
-TEST(Result, Assignment) {
-    Result<int, int> result;
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(*result, 0);
-
-    // Assign from rvalue ref result.
-    result = Result<int, int>{100};
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(*result, 100);
-
-    // Assign from lvalue ref result.
-    {
-        Result<int, int> source_result{200};
-        result = source_result;
-        EXPECT_TRUE(result.has_value());
-        EXPECT_EQ(*result, 200);
-    }
-
-    // Assign from rvalue ref error.
-    result = Error<int>{100};
-    EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), 100);
-
-    // Assign from lvalue ref error.
-    {
-        Error<int> source_error{200};
-        result = source_error;
-        EXPECT_FALSE(result.has_value());
-        EXPECT_EQ(result.error(), 200);
-    }
-
-    // Assign from rvalue ref U that's convertible to T.
-    result = ConvertibleTo{300};
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result.value(), 300);
-
-    // Assign from lvalue ref U that's convertible to T.
-    {
-        auto source = ConvertibleTo{400};
-        result = source;
-        EXPECT_TRUE(result.has_value());
-        EXPECT_EQ(*result, 400);
-    }
-}
-
-TEST(Result, ConvertFromDifferentResult) {
+TEST(Result, Constructors) {
     Result<int, int> initial_result{100};
     Result<int, int> initial_error{Error{200}};
 
@@ -215,6 +189,133 @@ TEST(Result, ConvertFromDifferentResult) {
         error = std::move(copy_error);
         EXPECT_FALSE(error.has_value());
         EXPECT_EQ(error.error(), 200);
+    }
+}
+
+TEST(Result, VoidConstructors) {
+    Result<void, int> initial_result;
+    Result<void, int> initial_error{Error{200}};
+
+    // Result(const Result<U, G>&)
+    {
+        Result<void, float> result{initial_result};
+        EXPECT_TRUE(result.has_value());
+
+        Result<void, float> error{initial_error};
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // Result(Result<U, G>&&)
+    {
+        Result<void, int> copy_result = initial_result;
+        Result<void, float> result{std::move(copy_result)};
+        EXPECT_TRUE(result.has_value());
+
+        Result<void, int> copy_error = initial_error;
+        Result<void, float> error{std::move(copy_error)};
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // operator=(const Result<U, G>&)
+    {
+        Result<void, float> result;
+        result = initial_result;
+        EXPECT_TRUE(result.has_value());
+
+        Result<void, float> error;
+        error = initial_error;
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // operator=(Result<U, G>&&)
+    {
+        Result<void, int> copy_result = initial_result;
+        Result<void, float> result;
+        result = std::move(copy_result);
+        EXPECT_TRUE(result.has_value());
+
+        Result<void, int> copy_error = initial_error;
+        Result<void, float> error;
+        error = std::move(copy_error);
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+}
+
+TEST(Result, Assignment) {
+    Result<int, int> result;
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 0);
+
+    // Assign from rvalue ref result.
+    result = Result<int, int>{100};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(*result, 100);
+
+    // Assign from lvalue ref result.
+    {
+        Result<int, int> source_result{200};
+        result = source_result;
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 200);
+    }
+
+    // Assign from rvalue ref error.
+    result = Error<int>{100};
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), 100);
+
+    // Assign from lvalue ref error.
+    {
+        Error<int> source_error{200};
+        result = source_error;
+        EXPECT_FALSE(result.has_value());
+        EXPECT_EQ(result.error(), 200);
+    }
+
+    // Assign from rvalue ref U that's convertible to T.
+    result = ConvertibleTo{300};
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result.value(), 300);
+
+    // Assign from lvalue ref U that's convertible to T.
+    {
+        auto source = ConvertibleTo{400};
+        result = source;
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 400);
+    }
+}
+
+TEST(Result, VoidAssignment) {
+    Result<void, int> result;
+    EXPECT_TRUE(result.has_value());
+
+    // Assign from rvalue ref result.
+    result = Result<void, int>{};
+    EXPECT_TRUE(result.has_value());
+
+    // Assign from lvalue ref result.
+    {
+        Result<void, int> source_result;
+        result = source_result;
+        EXPECT_TRUE(result.has_value());
+    }
+
+    // Assign from rvalue ref error.
+    result = Error<int>{100};
+    EXPECT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), 100);
+
+    // Assign from lvalue ref error.
+    {
+        Error<int> source_error{200};
+        result = source_error;
+        EXPECT_FALSE(result.has_value());
+        EXPECT_EQ(result.error(), 200);
     }
 }
 
@@ -315,25 +416,6 @@ TEST(Result, Destructor) {
         }
         EXPECT_EQ(destructor2_calls, 1);
     }
-}
-
-TEST(Result, VoidResult) {
-    Result<void, int> result;
-    EXPECT_TRUE(result.has_value());
-    EXPECT_TRUE(bool(result));
-
-    result = {};
-    EXPECT_TRUE(result.has_value());
-    EXPECT_TRUE(bool(result));
-
-    result = Error<int>{123};
-    EXPECT_FALSE(result.has_value());
-    EXPECT_FALSE(bool(result));
-    EXPECT_EQ(result.error(), 123);
-
-    result.emplace();
-    EXPECT_TRUE(result.has_value());
-    EXPECT_TRUE(bool(result));
 }
 
 TEST(Result, NonTrivial) {
