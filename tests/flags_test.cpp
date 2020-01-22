@@ -8,7 +8,25 @@ enum class TestEnum { A, B, C, _Count };
 
 enum TestUnscopedEnum { A, B, C, _Count };
 
-enum class IntEnum : short { A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, _Count };
+enum class IntEnum : short {
+    A0,
+    A1,
+    A2,
+    A3,
+    A4,
+    A5,
+    A6,
+    A7,
+    A8,
+    A9,
+    A10,
+    A11,
+    A12,
+    A13,
+    A14,
+    A15,
+    _Count
+};
 }  // namespace
 
 using dga::Flags;
