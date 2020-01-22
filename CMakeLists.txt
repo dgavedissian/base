@@ -15,7 +15,6 @@ add_library(dga-base INTERFACE)
 target_sources(dga-base INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/aliases.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/barrier.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/fast_variant_visit.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/flags.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/hash_combine.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/dga/platform.h

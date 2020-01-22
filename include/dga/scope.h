@@ -4,6 +4,7 @@
 
 #include <type_traits>
 #include <exception>
+#include "../dga/remove_cvref.h"
 
 /*
  * Implementation of http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0052r10.pdf
@@ -26,12 +27,6 @@
 
 namespace dga {
 namespace detail {
-// remove_cvref_t backported from C++20.
-template <typename T> struct remove_cvref {
-    typedef std::remove_cv_t<std::remove_reference_t<T>> type;
-};
-template <typename T> using remove_cvref_t = typename remove_cvref<T>::type;
-
 class OnExitPolicy {
 public:
     explicit OnExitPolicy(bool execute) : execute_(execute) {

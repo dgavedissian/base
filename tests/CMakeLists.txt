@@ -26,8 +26,3 @@ dga_add_test(flags_test)
 dga_add_test(scope_test)
 dga_add_test(string_algorithms_test)
 dga_add_test(result_test)
-
-# TODO: Split this into individual tests.
-add_executable(examples main.cpp)
-target_compile_features(examples PRIVATE cxx_std_17)
-target_link_libraries(examples dga-base)

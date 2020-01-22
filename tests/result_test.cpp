@@ -95,14 +95,6 @@ TEST(Result, ResultValue) {
         EXPECT_TRUE(bool(result));
         EXPECT_EQ(*result, 1.0f);
     }
-
-    // Error.
-    {
-        Result<float, int> error{Error<int>{1}};
-        EXPECT_FALSE(error.has_value());
-        EXPECT_FALSE(bool(error));
-        EXPECT_EQ(error.error(), 1);
-    }
 }
 
 TEST(Result, ValueOr) {
@@ -166,6 +158,63 @@ TEST(Result, Assignment) {
         result = source;
         EXPECT_TRUE(result.has_value());
         EXPECT_EQ(*result, 400);
+    }
+}
+
+TEST(Result, ConvertFromDifferentResult) {
+    Result<int, int> initial_result{100};
+    Result<int, int> initial_error{Error{200}};
+
+    // Result(const Result<U, G>&)
+    {
+        Result<float, float> result{initial_result};
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 100);
+
+        Result<float, float> error{initial_error};
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // Result(Result<U, G>&&)
+    {
+        Result<int, int> copy_result = initial_result;
+        Result<float, float> result{std::move(copy_result)};
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 100);
+
+        Result<int, int> copy_error = initial_error;
+        Result<float, float> error{std::move(copy_error)};
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // operator=(const Result<U, G>&)
+    {
+        Result<float, float> result;
+        result = initial_result;
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 100);
+
+        Result<float, float> error;
+        error = initial_error;
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
+    }
+
+    // operator=(Result<U, G>&&)
+    {
+        Result<int, int> copy_result = initial_result;
+        Result<float, float> result;
+        result = std::move(copy_result);
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(*result, 100);
+
+        Result<int, int> copy_error = initial_error;
+        Result<float, float> error;
+        error = std::move(copy_error);
+        EXPECT_FALSE(error.has_value());
+        EXPECT_EQ(error.error(), 200);
     }
 }
 
@@ -285,4 +334,51 @@ TEST(Result, VoidResult) {
     result.emplace();
     EXPECT_TRUE(result.has_value());
     EXPECT_TRUE(bool(result));
+}
+
+TEST(Result, NonTrivial) {
+    Result<std::string, std::string> initial;
+    EXPECT_TRUE(initial.has_value());
+    EXPECT_TRUE(bool(initial));
+
+    initial = Error(std::string{"str"});
+    EXPECT_FALSE(initial.has_value());
+    EXPECT_FALSE(bool(initial));
+    EXPECT_EQ(initial.error(), "str");
+
+    // Result(const Result&)
+    {
+        Result<std::string, std::string> result{initial};
+        EXPECT_FALSE(result.has_value());
+        EXPECT_FALSE(bool(result));
+        EXPECT_EQ(result.error(), "str");
+    }
+
+    // operator=(const Result&)
+    {
+        Result<std::string, std::string> result;
+        result = initial;
+        EXPECT_FALSE(result.has_value());
+        EXPECT_FALSE(bool(result));
+        EXPECT_EQ(result.error(), "str");
+    }
+
+    // Result(Result&&)
+    {
+        Result<std::string, std::string> copy = initial;
+        Result<std::string, std::string> result{std::move(copy)};
+        EXPECT_FALSE(result.has_value());
+        EXPECT_FALSE(bool(result));
+        EXPECT_EQ(result.error(), "str");
+    }
+
+    // operator=(Result&&)
+    {
+        Result<std::string, std::string> copy = initial;
+        Result<std::string, std::string> result;
+        result = std::move(copy);
+        EXPECT_FALSE(result.has_value());
+        EXPECT_FALSE(bool(result));
+        EXPECT_EQ(result.error(), "str");
+    }
 }

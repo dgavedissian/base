@@ -2,13 +2,20 @@
  * Written by David Avedissian (c) 2018-2020 (git@dga.dev)  */
 #pragma once
 
+#include <type_traits>
+#include <utility>
+#include <cassert>
+#include <exception>
+#include "../dga/remove_cvref.h"
+
 /*
  * Result type similar to Rust's Result<T, E>.
  *
  * Loosely based off the spec of std::expected:
  * http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0323r4.html
  *
- * Note: Not really fully exception safe yet.
+ * Note: Not really fully exception safe yet, and is probably still missing a lot of std::enable_if
+ * logic to guard against strange conversions. However, it's good enough for now.
  *
  * This object can be in two states, either in the value state storing a T, or the error state
  * storing an E. It's also possible to construct an object Error<E> to distinguish between OK values
@@ -28,6 +35,16 @@ public:
     }
 
     constexpr explicit Error(E&& value) : value_(std::move(value)) {
+    }
+
+    Error& operator=(const E& value) {
+        value_ = value;
+        return *this;
+    }
+
+    Error& operator=(E&& value) {
+        value_ = std::move(value);
+        return *this;
     }
 
     constexpr const E& value() const& {
@@ -63,6 +80,12 @@ template <typename E> struct is_error<Error<E>> : std::true_type {};
 template <typename T> constexpr bool is_error_v = is_error<T>::value;
 
 // Result type.
+template <typename T, typename E> class Result;
+
+// is_result type trait.
+template <typename R> struct is_result : std::false_type {};
+template <typename T, typename E> struct is_result<Result<T, E>> : std::true_type {};
+template <typename R> constexpr auto is_result_v = is_result<R>::value;
 
 namespace detail {
 struct uninitialised_tag {};
@@ -87,16 +110,24 @@ struct ResultStorage {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(const Error<G>& error)
-        : error_(error.value()), has_value_(false) {
+    constexpr ResultStorage(const Error<G>& error) : error_(error.value()), has_value_(false) {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(Error<G>&& error)
+    constexpr ResultStorage(Error<G>&& error)
         : error_(std::move(error).value()), has_value_(false) {
     }
 
+    constexpr ResultStorage(const ResultStorage& other) {
+        if (other.has_value_) {
+        }
+    }
+
     ~ResultStorage() {
+        destruct();
+    }
+
+    void destruct() {
         if (has_value_) {
             destructValue();
         } else {
@@ -135,16 +166,19 @@ template <typename E> struct ResultStorage<void, E, false, false> {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(const Error<G>& error)
-        : error_(error.value()), has_value_(false) {
+    constexpr ResultStorage(const Error<G>& error) : error_(error.value()), has_value_(false) {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(Error<G>&& error)
+    constexpr ResultStorage(Error<G>&& error)
         : error_(std::move(error).value()), has_value_(false) {
     }
 
     ~ResultStorage() {
+        destruct();
+    }
+
+    void destruct() {
         if (!has_value_) {
             destructError();
         }
@@ -176,16 +210,18 @@ template <typename E> struct ResultStorage<void, E, false, true> {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(const Error<G>& error)
-        : error_(error.value()), has_value_(false) {
+    constexpr ResultStorage(const Error<G>& error) : error_(error.value()), has_value_(false) {
     }
 
     template <typename G, std::enable_if_t<std::is_convertible_v<G, E>>* = nullptr>
-    constexpr explicit ResultStorage(Error<G>&& error)
+    constexpr ResultStorage(Error<G>&& error)
         : error_(std::move(error).value()), has_value_(false) {
     }
 
     ~ResultStorage() {
+    }
+
+    void destruct() {
     }
 
     void destructValue() {
@@ -222,7 +258,8 @@ template <typename T, typename E>
 struct ResultStorageWithOperations : ResultStorageDefaultConstructible<T, E> {
     using ResultStorageDefaultConstructible<T, E>::ResultStorageDefaultConstructible;
 
-    template <typename... Args> void constructValue(Args&&... args) noexcept {
+    template <typename... Args>
+    void constructValue(Args&&... args) noexcept(std::is_nothrow_constructible_v<T>) {
         if constexpr (std::is_void_v<T>) {
             this->value_ = void_placeholder{};
         } else {
@@ -231,8 +268,25 @@ struct ResultStorageWithOperations : ResultStorageDefaultConstructible<T, E> {
         this->has_value_ = true;
     }
 
-    template <typename... Args> void constructError(Args&&... args) noexcept {
+    template <typename... Args>
+    void constructError(Args&&... args) noexcept(std::is_nothrow_constructible_v<Error<E>>) {
         new (std::addressof(this->error_)) Error<E>(std::forward<Args>(args)...);
+        this->has_value_ = false;
+    }
+
+    template <typename U, std::enable_if_t<!std::is_void_v<U>>* = nullptr>
+    void assignValue(U&& value) {
+        this->value_ = std::forward<U>(value);
+        this->has_value_ = true;
+    }
+
+    void assignError(const E& value) {
+        this->error_ = value;
+        this->has_value_ = false;
+    }
+
+    void assignError(E&& value) {
+        this->error_ = std::move(value);
         this->has_value_ = false;
     }
 };
@@ -285,24 +339,41 @@ public:
     // Constructors.
     using detail::ResultStorageWithOperations<T, E>::ResultStorageWithOperations;
 
-    constexpr Result(const Result& other) = default;
-    constexpr Result(Result&& other) noexcept = default;
+    constexpr Result(const Result& other)
+        : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
+        if (other.has_value()) {
+            this->constructValue(*other);
+        } else {
+            this->constructError(other.error());
+        }
+    }
+
+    constexpr Result(Result&& other) noexcept(
+        std::is_nothrow_move_constructible_v<T>&& std::is_nothrow_move_constructible_v<E>)
+        : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
+        if (other.has_value()) {
+            this->constructValue(std::move(*other));
+        } else {
+            this->constructError(std::move(other.error()));
+        }
+    }
 
     template <typename U, typename G>
     explicit constexpr Result(const Result<U, G>& other)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->construct(*other);
+            this->constructValue(*other);
         } else {
             this->constructError(other.error());
         }
     }
 
     template <typename U, typename G>
-    explicit constexpr Result(Result<U, G>&& other)
+    explicit constexpr Result(Result<U, G>&& other) noexcept(
+        std::is_nothrow_move_constructible_v<T>&& std::is_nothrow_move_constructible_v<E>)
         : detail::ResultStorageWithOperations<T, E>(detail::uninitialised_tag{}) {
         if (other.has_value()) {
-            this->construct(std::move(*other));
+            this->constructValue(std::move(*other));
         } else {
             this->constructError(std::move(other.error()));
         }
@@ -312,17 +383,76 @@ public:
     ~Result() = default;
 
     // Assignment.
-    Result& operator=(const Result&) = default;
-    Result& operator=(Result&&) = default;
+    Result& operator=(const Result& other) {
+        this->destruct();
+        if (other.has_value()) {
+            if constexpr (!std::is_void_v<T>) {
+                this->assignValue(other.value());
+            } else {
+                this->constructValue();
+            }
+        } else {
+            this->assignError(other.error());
+        }
+        return *this;
+    }
 
-    template <
-        class U = T,
-        std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<U>>, Result>>* =
-            nullptr,
-        std::enable_if_t<!is_error_v<std::remove_cv_t<std::remove_reference_t<U>>>>* = nullptr>
+    Result& operator=(Result&& other) noexcept(
+        std::is_nothrow_move_assignable_v<T>&& std::is_nothrow_move_assignable_v<E>) {
+        this->destruct();
+        if (other.has_value()) {
+            if constexpr (!std::is_void_v<T>) {
+                this->assignValue(std::move(other).value());
+            } else {
+                this->constructValue();
+            }
+        } else {
+            this->assignError(std::move(other).error());
+        }
+        return *this;
+    }
+
+    template <typename U, typename G> Result& operator=(const Result<U, G>& other) {
+        this->destruct();
+        if (other.has_value()) {
+            if constexpr (!std::is_void_v<T>) {
+                this->assignValue(other.value());
+            } else {
+                this->constructValue();
+            }
+        } else {
+            this->assignError(other.error());
+        }
+        return *this;
+    }
+
+    template <typename U, typename G>
+    Result& operator=(Result<U, G>&& other) noexcept(
+        std::is_nothrow_move_assignable_v<T>&& std::is_nothrow_move_assignable_v<E>) {
+        this->destruct();
+        if (other.has_value()) {
+            if constexpr (!std::is_void_v<T>) {
+                this->assignValue(std::move(other).value());
+            } else {
+                this->constructValue();
+            }
+        } else {
+            this->assignError(std::move(other).error());
+        }
+        return *this;
+    }
+
+    // Construct from a universal reference.
+    // Requirements:
+    // * U must be convertible to T.
+    // * remove_cvref_t<U> must be not equal Result<T, E>
+    // * remove_cvref_t<U> must not be an Error type.
+    template <class U = T, std::enable_if_t<std::is_convertible_v<U, T>>* = nullptr,
+              std::enable_if_t<!std::is_same_v<remove_cvref_t<U>, Result>>* = nullptr,
+              std::enable_if_t<!is_error_v<remove_cvref_t<U>>>* = nullptr>
     Result& operator=(U&& value) {
         if (has_value()) {
-            this->value_ = T{std::forward<U>(value)};
+            this->value_ = std::forward<U>(value);
         } else {
             this->destructError();
             this->constructValue(std::forward<U>(value));
@@ -354,7 +484,7 @@ public:
               typename = std::enable_if_t<std::is_nothrow_constructible_v<T, Args&&...>>>
     void emplace(Args&&... args) {
         if (has_value()) {
-            this->value_ = T{std::forward<Args>(args)...};
+            this->value_ = T(std::forward<Args>(args)...);
         } else {
             this->destructError();
             this->constructValue(std::forward<Args>(args)...);
@@ -517,6 +647,29 @@ public:
         } else {
             return static_cast<T>(std::forward<U>(other_value));
         }
+    }
+
+    // A workaround to access the Error<T> wrapper when we have a reference to another Result type.
+    // Due to private inheritance rules, we can't access other.error_ directly when implementing a
+    // copy constructor for Result<U, G>.
+    constexpr const Error<E>& wrapped_error() const& {
+        assert(!has_value());
+        return this->error_;
+    }
+
+    constexpr Error<E>& wrapped_error() & {
+        assert(!has_value());
+        return this->error_;
+    }
+
+    constexpr const Error<E>&& wrapped_error() const&& {
+        assert(!has_value());
+        return std::move(this->error_);
+    }
+
+    constexpr Error<E>&& wrapped_error() && {
+        assert(!has_value());
+        return std::move(this->error_);
     }
 };
 }  // namespace dga
