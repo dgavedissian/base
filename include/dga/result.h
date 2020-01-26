@@ -516,8 +516,9 @@ public:
 
     // Swap.
     template <
-        std::enable_if_t<std::is_nothrow_move_constructible_v<T> ||
-                         std::is_nothrow_move_constructible_v<E> || std::is_void_v<T>>* = nullptr>
+        typename U = T, typename G = E,
+        std::enable_if_t<std::is_nothrow_move_constructible_v<U> ||
+                         std::is_nothrow_move_constructible_v<G> || std::is_void_v<U>>* = nullptr>
     void swap(Result& other) {
         if (has_value() && other.has_value()) {
             std::swap(this->value_, other.value_);
